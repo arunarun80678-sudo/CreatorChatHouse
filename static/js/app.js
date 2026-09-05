@@ -1,0 +1,23 @@
+let tool='hooks';const $=id=>document.getElementById(id);
+async function api(url,opt={}){let r=await fetch(url,{headers:{'Content-Type':'application/json'},...opt});let d=await r.json();if(!r.ok)throw Error(d.error||'Request failed');return d}
+const toolNames={hooks:'Viral Hooks',titles:'YouTube Titles',script:'Script Writer',seo:'SEO',ideas:'Content Ideas',thumbnail:'Thumbnail Concepts'};
+Object.entries(toolNames).forEach(([k,v])=>{let b=document.createElement('button');b.textContent=v;b.onclick=()=>tool=k; $('toolTabs').appendChild(b)});
+function page(n){document.querySelectorAll('.page').forEach(x=>x.classList.remove('on'));$(n).classList.add('on');let t={chat:'New Chat',image:'Image Prompt Studio',tools:'AI Tools',documents:'Documents',scheduling:'Scheduling',projects:'Projects',search:'Search',history:'History',settings:'Settings'}[n];$('title').textContent=t;if(n==='documents')loadDocs();if(n==='scheduling')loadSchedules();if(n==='projects')loadProjects();if(n==='history')loadHistory();}
+function add(text,type){let d=document.createElement('div');d.className='msg '+type;d.textContent=text;$('messages').appendChild(d);d.scrollIntoView({behavior:'smooth'})}
+function quickChat(t){$('chatInput').value=t;sendChat()}
+async function sendChat(){let m=$('chatInput').value.trim();if(!m)return;$('chatInput').value='';let w=$('messages').querySelector('.welcome');if(w)w.remove();add(m,'user');add('Thinking…','ai');let x=$('messages').lastChild;try{x.textContent=(await api('/api/chat',{method:'POST',body:JSON.stringify({message:m})})).message}catch(e){x.textContent=e.message}}
+$('chatInput').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat()}}
+function newChat(){$('messages').innerHTML='';page('chat')}
+async function generateImagePrompt(){let description=$('imageDescription').value.trim();if(!description){$('imagePromptResult').textContent='Please describe the image first.';return}$('imagePromptResult').textContent='Crafting your professional prompt…';try{let d=await api('/api/image-prompt',{method:'POST',body:JSON.stringify({description,style:$('imageStyle').value,ratio:$('imageRatio').value})});$('imagePromptResult').textContent=d.prompt}catch(e){$('imagePromptResult').textContent=e.message}}
+function copyPrompt(){navigator.clipboard.writeText($('imagePromptResult').textContent)}
+async function generateTool(){$('toolResult').textContent='Generating…';try{$('toolResult').textContent=(await api('/api/tool',{method:'POST',body:JSON.stringify({tool,input:$('toolInput').value})})).message}catch(e){$('toolResult').textContent=e.message}}
+async function upload(){let f=$('file').files[0];if(!f)return;let fd=new FormData();fd.append('file',f);let r=await fetch('/api/upload',{method:'POST',body:fd});let d=await r.json();$('docResult').textContent=d.message||d.error;loadDocs()}
+async function loadDocs(){let d=await api('/api/documents');$('doc').innerHTML=d.documents.map(x=>'<option value="'+x.id+'">'+x.filename+'</option>').join('')}
+async function askDoc(){$('docResult').textContent='Thinking…';try{$('docResult').textContent=(await api('/api/document-chat',{method:'POST',body:JSON.stringify({document_id:$('doc').value,question:$('question').value})})).message}catch(e){$('docResult').textContent=e.message}}
+async function addSchedule(){await api('/api/schedules',{method:'POST',body:JSON.stringify({title:$('st').value,platform:$('sp').value,schedule_time:$('sd').value,notes:$('sn').value})});loadSchedules()}
+async function loadSchedules(){let d=await api('/api/schedules');$('scheduleList').innerHTML=d.schedules.map(x=>'<div class=item>'+x.title+' — '+x.platform+' — '+x.schedule_time+'</div>').join('')}
+async function addProject(){await api('/api/projects',{method:'POST',body:JSON.stringify({name:$('pn').value,description:$('pd').value})});loadProjects()}
+async function loadProjects(){let d=await api('/api/projects');$('projectList').innerHTML=d.projects.map(x=>'<div class=item><b>'+x.name+'</b><br>'+x.description+'</div>').join('')}
+async function searchChats(){let d=await api('/api/search?q='+encodeURIComponent($('sq').value));$('searchResults').innerHTML=d.results.map(x=>'<div class=item>'+x.ai_message+'</div>').join('')}
+async function loadHistory(){let d=await api('/api/chats');$('historyList').innerHTML=d.chats.map(x=>'<div class=item><b>'+x.title+'</b><p>'+x.ai_message+'</p></div>').join('')}
+(async()=>{try{let d=await api('/api/health');$('health').textContent=d.api_configured?'● Gemini Ready':'Gemini Key Missing';$('models').textContent='Text model: '+d.text_model+' | Image generation: disabled | Prompt generation: enabled'}catch(e){$('health').textContent='Server offline'}})();

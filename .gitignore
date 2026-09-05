@@ -1,0 +1,8 @@
+.env
+venv/
+__pycache__/
+*.pyc
+creatorchat.db
+uploads/*
+!uploads/.gitkeep
+node_modules/
